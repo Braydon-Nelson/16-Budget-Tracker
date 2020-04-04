@@ -7,7 +7,7 @@ const indexedDB =
 
 
 let db;
-const request = indexedDB.open('heroku_vv3ljmb8', 1);
+const request = indexedDB.open('budget', 1);
 
 request.onupgradeneeded = ({ target }) => {
     const db = target.result;
