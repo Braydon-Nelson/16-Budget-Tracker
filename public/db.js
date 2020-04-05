@@ -47,6 +47,7 @@ function checkDatabase() {
                     'Content-Type': 'application/json'
                 }
             }).then(response => {
+                store.clear();
                 return response.json();
             });
         }

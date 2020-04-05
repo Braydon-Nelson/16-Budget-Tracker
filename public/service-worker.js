@@ -32,7 +32,13 @@ self.addEventListener("activate", event => {
 });
 
 self.addEventListener("fetch", event => {
-    if (event.request.url.startsWith(self.location.origin)) {
+
+    if (
+        event.request.method !== "GET" &&
+        !event.request.url.startsWith(self.location.origin) && event.request.url.includes("/api/")
+    ) {
+
+
         event.respondWith(
             caches.match(event.request).then(cachedResponse => {
                 if (cachedResponse) {
@@ -41,12 +47,28 @@ self.addEventListener("fetch", event => {
 
                 return caches.open(RUNTIME).then(cache => {
                     return fetch(event.request).then(response => {
-                        return cache.put(event.request, response.clone()).then(() => {
-                            return response;
-                        });
+                        if (response.status === 200) {
+                            cache.put(event.request.url, response.clone());
+                        }
+                        return response;
                     });
                 });
             })
         );
     }
+
+    event.respondWith(
+        fetch(event.request).catch(function () {
+            return caches.match(event.request).then(function (response) {
+                if (response) {
+                    return response;
+                } else if (event.request.headers.get("accept").includes("text/html")) {
+                    // return the cached home page for all requests for html pages
+                    return caches.match("/");
+                }
+            });
+        })
+    );
+
+
 });
