@@ -5,54 +5,63 @@ const indexedDB =
     window.msIndexedDB ||
     window.shimIndexedDB;
 
-
 let db;
-const request = indexedDB.open('budget', 1);
 
-request.onupgradeneeded = ({ target }) => {
-    const db = target.result;
-    db.createObjectStore('pending', { autoIncrement: true });
+const dbRequest = indexedDB.open("budget", 1);
+
+dbRequest.onupgradeneeded = function (event) {
+    const db = event.target.result;
+
+    db.createObjectStore("pending", { autoIncrement: true });
 };
 
-request.onsuccess = ({ target }) => {
-    db = target.result;
+dbRequest.onsuccess = function (event) {
+    db = event.target.result;
+
     if (navigator.onLine) {
         checkDatabase();
     }
 };
 
-request.onerror = function (event) {
-    console.log('Error! ' + event.target.errorCode);
+
+dbRequest.onerror = function (event) {
+    console.log("Error." + event.target.errorCode);
 };
 
 function saveRecord(record) {
-    const transaction = db.transaction(['pending'], 'readwrite');
-    const store = transaction.objectStore('pending');
+    const transaction = db.transaction(["pending"], "readwrite");
+    const store = transaction.objectStore("pending");
 
     store.add(record);
 }
 
 function checkDatabase() {
-    const transaction = db.transaction(['pending'], 'readwrite');
-    const store = transaction.objectStore('pending');
-    const getAll = store.getAll();
 
-    getAll.onsuccess = function () {
-        if (getAll.result.length > 0) {
-            fetch('/api/transaction/bulk', {
-                method: 'POST',
-                body: JSON.stringify(getAll.result),
+    const transaction = db.transaction(["pending"], "readwrite");
+
+    const store = transaction.objectStore("pending");
+
+    const retrieveAll = store.getAll();
+
+    retrieveAll.onsuccess = function () {
+        if (retrieveAll.result.length > 0) {
+            fetch("/api/transaction/bulk", {
+                method: "POST",
+                body: JSON.stringify(retrieveAll.result),
                 headers: {
-                    Accept: 'application/json, text/plain, */*',
-                    'Content-Type': 'application/json'
+                    Accept: "application/json, text/plain, */*",
+                    "Content-Type": "application/json"
                 }
-            }).then(response => {
-                store.clear();
-                return response.json();
-            });
+            }).then(response => response.json())
+                .then(() => {
+                    const transaction = db.transaction(["pending"], "readwrite");
+                    const store = transaction.objectStore("pending");
+
+                    store.clear();
+                });
         }
     };
 }
 
-// listen for app coming back online
-window.addEventListener('online', checkDatabase);
+
+window.addEventListener("online", checkDatabase);

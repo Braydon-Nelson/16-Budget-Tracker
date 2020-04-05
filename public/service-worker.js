@@ -1,74 +1,63 @@
 const FILES_TO_CACHE = [
     '/',
+    '/index.html',
+    '/manifest.webmanifest',
     '/styles.css',
+    '/index.js',
     '/db.js',
-    '/index.js'
+    '/icons/icon-192x192.png',
+    '/icons/icon-512x512.png',
 ];
 
+const CACHE_NAME = "precache-v1";
+const DATA_CACHE_NAME = "runtime";
 
-const PRECACHE = "precache-v1";
-const RUNTIME = "runtime";
 
-self.addEventListener("install", event => {
+self.addEventListener("install", function (event) {
     event.waitUntil(
-        caches.open(PRECACHE)
-            .then(cache => cache.addAll(FILES_TO_CACHE))
-            .then(self.skipWaiting())
+        caches.open(CACHE_NAME).then(cache => {
+            console.log("Your files were pre-cached successfully!");
+            return cache.addAll(FILES_TO_CACHE);
+        })
     );
+
 });
 
-// The activate handler takes care of cleaning up old caches.
-self.addEventListener("activate", event => {
-    const currentCaches = [PRECACHE, RUNTIME];
-    event.waitUntil(
-        caches.keys().then(cacheNames => {
-            return cacheNames.filter(cacheName => !currentCaches.includes(cacheName));
-        }).then(cachesToDelete => {
-            return Promise.all(cachesToDelete.map(cacheToDelete => {
-                return caches.delete(cacheToDelete);
-            }));
-        }).then(() => self.clients.claim())
-    );
-});
 
-self.addEventListener("fetch", event => {
-
-    if (
-        event.request.method !== "GET" &&
-        !event.request.url.startsWith(self.location.origin) && event.request.url.includes("/api/")
-    ) {
-
-
+// fetch
+self.addEventListener("fetch", function (event) {
+    if (event.request.url.includes("/api/")) {
         event.respondWith(
-            caches.match(event.request).then(cachedResponse => {
-                if (cachedResponse) {
-                    return cachedResponse;
-                }
-
-                return caches.open(RUNTIME).then(cache => {
-                    return fetch(event.request).then(response => {
+            caches.open(DATA_CACHE_NAME).then(cache => {
+                return fetch(event.request)
+                    .then(response => {
+                        // clone the response if successful.
                         if (response.status === 200) {
                             cache.put(event.request.url, response.clone());
                         }
+
                         return response;
+                    })
+                    .catch(err => {
+                        // if the network request failed, retrieve from the cache
+                        return cache.match(event.request);
                     });
-                });
-            })
+            }).catch(err => console.log(err))
         );
+
+        return;
     }
 
     event.respondWith(
         fetch(event.request).catch(function () {
-            return caches.match(event.request).then(function (response) {
+            return caches.match(event.request).then(response => {
                 if (response) {
                     return response;
-                } else if (event.request.headers.get("accept").includes("text/html")) {
-                    // return the cached home page for all requests for html pages
+                }
+                else if (event.request.headers.get("accept").includes("text/html")) {
                     return caches.match("/");
                 }
             });
         })
     );
-
-
 });
